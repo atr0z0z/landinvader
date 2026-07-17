@@ -34,6 +34,8 @@ export class SkiaRenderer {
 
   /** Имена игроков (id → имя) для подписей на территориях. */
   private readonly names = new Map<number, string>();
+  /** Армия каждого игрока (id→troops) для очков под ником. */
+  private armies = new Map<number, number>();
   /** Шрифт для подписей (грузится асинхронно). */
   private font: import('canvaskit-wasm').Font | null = null;
   /** Корабли в полёте (обновляются с сервера) для отрисовки мигающих точек. */
@@ -65,6 +67,11 @@ export class SkiaRenderer {
   /** Запоминает имя игрока для подписи на его территории. */
   setPlayerName(id: number, name: string): void {
     this.names.set(id, name);
+  }
+
+  /** Обновляет армии игроков (для очков под ником). */
+  setArmies(armies: Map<number, number>): void {
+    this.armies = armies;
   }
 
   /** Загружает шрифт для подписей из байтов (TTF). */
@@ -214,9 +221,23 @@ export class SkiaRenderer {
         let w = 0;
         for (const gw of widths) w += gw;
         const tx = cx - w / 2;
-        // Тень под текстом + сам текст.
+        // Тень под текстом + сам текст (имя).
         canvas.drawText(name, tx + 1, cy + 1, shadowPaint, this.font);
         canvas.drawText(name, tx, cy, textPaint, this.font);
+
+        // Очки (армия) под именем — строкой ниже, по центру.
+        const army = this.armies.get(owner);
+        if (army !== undefined) {
+          const armyStr = String(army);
+          const aids = this.font.getGlyphIDs(armyStr);
+          const awidths = this.font.getGlyphWidths(aids, textPaint);
+          let aw = 0;
+          for (const gw of awidths) aw += gw;
+          const atx = cx - aw / 2;
+          const aty = cy + 14; // строка ниже имени
+          canvas.drawText(armyStr, atx + 1, aty + 1, shadowPaint, this.font);
+          canvas.drawText(armyStr, atx, aty, textPaint, this.font);
+        }
       }
       textPaint.delete();
       shadowPaint.delete();

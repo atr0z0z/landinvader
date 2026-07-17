@@ -39,9 +39,12 @@ async function main(): Promise<void> {
   const ratioSlider = document.getElementById('ratio') as HTMLInputElement;
   const ratioLabel = document.getElementById('ratioLabel')!;
 
-  ratioSlider.addEventListener('input', () => {
+  const updateRatioLabel = (): void => {
     ratioLabel.textContent = `${ratioSlider.value}%`;
-  });
+  };
+  ratioSlider.addEventListener('input', updateRatioLabel);
+  ratioSlider.addEventListener('change', updateRatioLabel);
+  updateRatioLabel(); // начальное значение
 
   // ── 1. Skia + холст ──
   const ck = await loadCanvasKit();
@@ -95,12 +98,47 @@ async function main(): Promise<void> {
   }
   requestAnimationFrame(frame);
 
+  // ── Лидерборд ──
+  const leaderboard = document.getElementById('leaderboard')!;
+  const lbList = document.getElementById('lbList')!;
+
+  function playerColorHex(id: number): string {
+    // Та же формула, что на сервере и в рендере (owner-1)%N.
+    const colors = ['#4ade80', '#22d3ee', '#a78bfa', '#f472b6', '#facc15',
+      '#fb923c', '#38bdf8', '#c084fc', '#34d399', '#f87171'];
+    return colors[(id - 1) % colors.length]!;
+  }
+
+  function updateLeaderboard(entries: { id: number; territory: number }[]): void {
+    // Топ-10 по территории.
+    const top = [...entries].sort((a, b) => b.territory - a.territory).slice(0, 10);
+    lbList.innerHTML = '';
+    top.forEach((e, i) => {
+      const row = document.createElement('div');
+      row.className = 'lb-row' + (e.id === myId ? ' me' : '');
+      const name = players.get(e.id)?.name ?? `Player ${e.id}`;
+      row.innerHTML =
+        `<span class="lb-rank">${i + 1}</span>` +
+        `<span class="lb-dot" style="background:${playerColorHex(e.id)}"></span>` +
+        `<span class="lb-name">${escapeHtml(name)}</span>` +
+        `<span class="lb-terr">${e.territory}</span>`;
+      lbList.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s: string): string {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
   // ── 3. Экраны ──
   function showMenu(): void {
     menu.classList.remove('hidden');
     lobby.classList.add('hidden');
     status.classList.add('hidden');
     panel.classList.add('hidden');
+    leaderboard.classList.add('hidden');
   }
   function showLobby(): void {
     menu.classList.add('hidden');
@@ -110,6 +148,7 @@ async function main(): Promise<void> {
     lobby.classList.add('hidden');
     status.classList.remove('hidden');
     panel.classList.remove('hidden');
+    leaderboard.classList.remove('hidden');
     inGame = true;
   }
 
@@ -191,6 +230,17 @@ async function main(): Promise<void> {
           status.textContent = `Вы — ${players.get(myId)?.name ?? 'Player'} · игроков: ${players.size}`;
         }, 2500);
         break;
+
+      case 'scoreboard': {
+        // Армия под ником: отдаём рендеру карту id→армия.
+        const armies = new Map<number, number>();
+        for (const e of message.entries) armies.set(e.id, e.troops);
+        renderer.setArmies(armies);
+        dirty = true;
+        // Лидерборд: топ-10 по территории.
+        updateLeaderboard(message.entries);
+        break;
+      }
     }
   };
 

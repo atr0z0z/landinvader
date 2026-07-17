@@ -47,7 +47,8 @@ export class Room {
 
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private botFillAccum = 0;   // мс с последней досадки бота
-  private countdownRemaining = 0; // мс до старта (в countdown)
+  private scoreboardAccum = 0; // мс с последней рассылки сводки очков
+  private countdownEndsAt = 0; // реальное время (мс) окончания отсчёта
 
   constructor(
     id: number,
@@ -165,7 +166,7 @@ export class Room {
     // Достигли порога → запускаем отсчёт.
     if (this.playerCount >= START_THRESHOLD_COUNT) {
       this.phase = 'countdown';
-      this.countdownRemaining = COUNTDOWN_MS;
+      this.countdownEndsAt = Date.now() + COUNTDOWN_MS;
       this.broadcastLobby();
     }
     // Симуляция в ожидании тоже идёт (боты растут, карта живёт).
@@ -173,14 +174,15 @@ export class Room {
   }
 
   private tickCountdown(): void {
-    this.countdownRemaining -= TICK_INTERVAL_MS;
+    // Осталось по РЕАЛЬНОМУ времени, а не по числу тиков — иначе под
+    // нагрузкой таймер отстаёт и отсчёт врёт.
+    const remaining = this.countdownEndsAt - Date.now();
     // Лобби заполнилось полностью — старт немедленно.
-    if (this.playerCount >= ROOM_CAPACITY || this.countdownRemaining <= 0) {
+    if (this.playerCount >= ROOM_CAPACITY || remaining <= 0) {
       this.startGame();
       return;
     }
-    // Во время отсчёта продолжаем досаживать ботов до полного заполнения,
-    // чтобы к старту комната была живой (по желанию — можно убрать).
+    // Во время отсчёта продолжаем досаживать ботов до полного заполнения.
     this.botFillAccum += TICK_INTERVAL_MS;
     if (this.botFillAccum >= BOT_FILL_INTERVAL_MS) {
       this.botFillAccum = 0;
@@ -190,10 +192,8 @@ export class Room {
       }
     }
     this.stepSimulation();
-    // Раз в ~секунду обновляем клиентам оставшееся время.
-    if (Math.round(this.countdownRemaining / TICK_INTERVAL_MS) % 10 === 0) {
-      this.broadcastLobby();
-    }
+    // Обновляем клиентам оставшееся время каждый тик (дёшево).
+    this.broadcastLobby();
   }
 
   private tickPlaying(): void {
@@ -206,6 +206,12 @@ export class Room {
     // Персональная статистика людям.
     for (const human of this.humans.values()) {
       human.send({ type: 'stats', ...this.simulation.getStats(human.id) });
+    }
+    // Сводка очков (лидерборд + армия под ником) — раз в ~секунду.
+    this.scoreboardAccum += TICK_INTERVAL_MS;
+    if (this.scoreboardAccum >= 1000) {
+      this.scoreboardAccum = 0;
+      this.broadcast({ type: 'scoreboard', entries: this.simulation.scoreboard() });
     }
   }
 
@@ -242,7 +248,7 @@ export class Room {
       players: this.playerCount,
       capacity: ROOM_CAPACITY,
       humans: this.humans.size,
-      countdownMs: this.phase === 'countdown' ? Math.max(0, this.countdownRemaining) : undefined,
+      countdownMs: this.phase === 'countdown' ? Math.max(0, this.countdownEndsAt - Date.now()) : undefined,
     };
     this.broadcast(msg);
   }

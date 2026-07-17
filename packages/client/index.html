@@ -142,7 +142,8 @@
         font: 14px/1 system-ui, sans-serif;
         color: #c9c9d4;
         user-select: none;
-        z-index: 5;
+        pointer-events: auto;
+        z-index: 20;
       }
       #panel input[type='range'] { width: 160px; accent-color: #4ade80; }
       #troops { min-width: 70px; font-variant-numeric: tabular-nums; }
@@ -177,6 +178,44 @@
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 0 2px #4ade80;
       }
       .radial-icon { font-size: 22px; }
+
+      /* Лидерборд в правом верхнем углу. */
+      #leaderboard {
+        position: fixed;
+        top: 12px; right: 12px;
+        min-width: 180px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: rgba(20, 20, 28, 0.85);
+        font: 13px/1.5 system-ui, sans-serif;
+        color: #c9c9d4;
+        user-select: none;
+        z-index: 6;
+      }
+      .lb-title {
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #8b8b99;
+        margin-bottom: 8px;
+      }
+      .lb-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 0;
+      }
+      .lb-rank { width: 18px; color: #6b6b7b; font-variant-numeric: tabular-nums; }
+      .lb-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+      .lb-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .lb-terr { color: #8b8b99; font-variant-numeric: tabular-nums; }
+      .lb-row.me .lb-name { color: #4ade80; font-weight: 600; }
     </style>
   </head>
   <body>
@@ -209,6 +248,12 @@
       <button class="radial-btn" data-action="ship" title="Отправить корабль">
         <span class="radial-icon">⛵</span>
       </button>
+    </div>
+
+    <!-- Лидерборд (топ-10 по территории) в правом верхнем углу -->
+    <div id="leaderboard" class="game-ui hidden">
+      <div class="lb-title">Лидеры</div>
+      <div id="lbList"></div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

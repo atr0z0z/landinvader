@@ -21,14 +21,17 @@ export const TICK_INTERVAL_MS = 1000 / TICK_RATE;
 /** Баланс войск при спавне/респавне. */
 export const START_TROOPS = 120;
 
-/** Прирост войск за тик: BASE + territory * PER_CELL. */
+/** Прирост войск за тик: BASE + territory * PER_CELL.
+ *  Подобран так, чтобы армия ощутимо росла с территорией (большой игрок
+ *  копит быстрее и становится реально сильнее мелкого) при быстром темпе. */
 export const BASE_INCOME_PER_TICK = 1;
-export const INCOME_PER_CELL = 0.015;
+export const INCOME_PER_CELL = 0.05;
 
 /** Потолок баланса: BASE + territory * PER_CELL.
- *  Не даёт «сидеть и копить» — империю надо тратить. */
-export const TROOPS_CAP_BASE = 100;
-export const TROOPS_CAP_PER_CELL = 2;
+ *  Потолок растёт с территорией — армия «в меру территории», но большой
+ *  игрок может накопить кратно больше мелкого (перевес даёт снос). */
+export const TROOPS_CAP_BASE = 150;
+export const TROOPS_CAP_PER_CELL = 4;
 
 /** Базовая стоимость захвата любой клетки (в войсках). */
 export const BASE_CELL_COST = 1;
@@ -42,7 +45,7 @@ export const BASE_CELL_COST = 1;
  * разжиревшая, но пустая империя проглатывается легко. Это и делает
  * атаку «по игроку значительно дороже», причём математически честно.
  */
-export const ENEMY_DEFENSE_K = 0.8;
+export const ENEMY_DEFENSE_K = 0.5;
 
 /** Предохранитель: даже беззащитная вражеская клетка не дешевле нейтральной
  *  больше, чем на этот порог (не даёт стоимости упасть в ноль). */
@@ -58,6 +61,11 @@ export const HOLD_STRENGTH = 2;
 /** Доля остатка войск волны, оставляемая в клетке как оборона. Делает
  *  оборону пропорциональной силе атаки: сильный захват держится крепче. */
 export const HOLD_FRACTION = 0.02;
+
+/** Короткий cooldown (тиков), в течение которого свежезахваченную клетку
+ *  нельзя отбить обратно. Гасит мерцание границы при встречном бое, но
+ *  достаточно мал, чтобы не морозить продвижение сильной армии. */
+export const CONTEST_COOLDOWN_TICKS = 4;
 
 // ─────────────────────────── Корабли ───────────────────────────
 
@@ -100,7 +108,7 @@ export const ROOM_CAPACITY = 16;
 export const ROOM_START_THRESHOLD = 0.6; // 60% = 10 игроков из 16
 
 /** Длительность отсчёта до старта игры, мс. */
-export const COUNTDOWN_MS = 15000;
+export const COUNTDOWN_MS = 10000;
 
 /** Интервал досадки ботов в фазе ожидания, мс. */
 export const BOT_FILL_INTERVAL_MS = 5000;

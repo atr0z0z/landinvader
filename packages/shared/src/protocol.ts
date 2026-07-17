@@ -94,6 +94,18 @@ export interface ShipResultMessage {
   reason?: string;
 }
 
+/** Сводка очков по игрокам — для лидерборда и подписей армии.
+ *  Шлётся раз в ~секунду (не каждый тик — экономия трафика). */
+export interface ScoreboardEntry {
+  id: number;
+  troops: number;
+  territory: number;
+}
+export interface ScoreboardMessage {
+  type: 'scoreboard';
+  entries: ScoreboardEntry[];
+}
+
 export type ServerMessage =
   | InitMessage
   | DiffMessage
@@ -103,7 +115,8 @@ export type ServerMessage =
   | LobbyMessage
   | GameStartMessage
   | ShipsMessage
-  | ShipResultMessage;
+  | ShipResultMessage
+  | ScoreboardMessage;
 
 // ─────────────────────────── Клиент → Сервер ───────────────────────────
 

@@ -11,6 +11,7 @@ import {
   TROOPS_CAP_PER_CELL,
   BASE_CELL_COST,
   ENEMY_DEFENSE_K,
+  CONTEST_COOLDOWN_TICKS,
   MIN_ENEMY_CELL_COST,
   SHIP_MIN_TROOPS,
   MIN_ATTACK_RATIO,
@@ -53,6 +54,13 @@ export class Simulation implements WaveContext {
   private ships: Ship[] = [];
   private readonly changed = new Map<number, number>(); // индекс → новый владелец
 
+  /** Тик последнего захвата клетки — для короткого анти-мерцательного
+   *  cooldown: только что перешедшую клетку нельзя отбить обратно несколько
+   *  тиков. Гасит дрожание границы при встречном бое, но не мешает сильному
+   *  сносить слабого (тот просто подождёт пару тиков). */
+  private captureTick!: Int32Array;
+  private currentTick = 0;
+
   /** Сила удержания каждой клетки — сколько войск нужно вложить, чтобы её
    *  отбить. Ядро механики линии фронта: клетка переходит к врагу, только
    *  если атака ПРЕВЫШАЕТ эту силу; отбить назад можно лишь снова пробив
@@ -68,6 +76,7 @@ export class Simulation implements WaveContext {
     this.spawnable = map.spawnable;
     this.crop = map.crop;
     this.defense = new Float32Array(this.grid.length);
+    this.captureTick = new Int32Array(this.grid.length).fill(-1000);
   }
 
   // ────────────────────────── Публичный API ──────────────────────────
@@ -157,6 +166,7 @@ export class Simulation implements WaveContext {
 
   /** Один шаг мира: экономика, затем волны. */
   tick(): void {
+    this.currentTick++;
     // 1. Экономика: прирост пропорционален территории, с потолком.
     for (const player of this.players.values()) {
       if (player.territory === 0) continue;
@@ -206,6 +216,17 @@ export class Simulation implements WaveContext {
     return this.ships.length > 0;
   }
 
+  /** Сводка по всем живым игрокам — для лидерборда и очков под ником. */
+  scoreboard(): { id: number; troops: number; territory: number }[] {
+    const out: { id: number; troops: number; territory: number }[] = [];
+    for (const [id, p] of this.players) {
+      if (p.territory > 0) {
+        out.push({ id, troops: Math.floor(p.troops), territory: p.territory });
+      }
+    }
+    return out;
+  }
+
   getStats(playerId: number): { troops: number; territory: number } {
     const player = this.players.get(playerId);
     return player
@@ -243,11 +264,20 @@ export class Simulation implements WaveContext {
     const owner = this.grid[index]!;
     if (owner === NEUTRAL) return BASE_CELL_COST;
 
-    // Стоимость захвата вражеской клетки = её сила удержания + база.
-    // Клетка перейдёт, только если у волны хватит войск ПРОБИТЬ эту
-    // оборону. Обратный захват потребует снова пробить уже новую оборону,
-    // поэтому граница не мерцает.
-    return BASE_CELL_COST + this.defense[index]!;
+    // Короткий анти-мерцательный cooldown: только что захваченную клетку
+    // нельзя отбить обратно несколько тиков. Гасит дрожание границы при
+    // встречном бое. Сильному это не мешает — он подождёт пару тиков и
+    // продолжит снос (у него огромный запас армии).
+    if (this.currentTick - this.captureTick[index]! < CONTEST_COOLDOWN_TICKS) {
+      return Infinity;
+    }
+
+    // Стоимость захвата вражеской клетки зависит от ПЛОТНОСТИ ОБОРОНЫ
+    // защитника — его армии на клетку. Слабый защитник сносится дёшево.
+    const defender = this.players.get(owner);
+    if (!defender || defender.territory === 0) return BASE_CELL_COST;
+    const density = defender.troops / defender.territory;
+    return BASE_CELL_COST + ENEMY_DEFENSE_K * density;
   }
 
   /** Захват клетки волной: смена владельца + бухгалтерия + элиминация.
@@ -256,7 +286,8 @@ export class Simulation implements WaveContext {
   captureCell(index: number, attackerId: number, holdStrength = 0): void {
     const previousOwner = this.grid[index]!;
     this.setCell(index, attackerId);
-    this.defense[index] = holdStrength; // новая оборона клетки
+    this.defense[index] = holdStrength;
+    this.captureTick[index] = this.currentTick; // метка для анти-мерцания
 
     const attacker = this.players.get(attackerId);
     if (attacker) attacker.territory++;
@@ -265,6 +296,13 @@ export class Simulation implements WaveContext {
       const defender = this.players.get(previousOwner);
       if (defender) {
         defender.territory--;
+        // Потеря клетки стоит защитнику войск (по плотности его обороны).
+        // Это истощает жертву в бою: когда её армия кончилась, отбивать
+        // нечем — граница фиксируется, мерцания нет.
+        if (defender.territory > 0) {
+          const loss = defender.troops / (defender.territory + 1);
+          defender.troops = Math.max(0, defender.troops - loss);
+        }
         if (defender.territory <= 0) this.eliminate(previousOwner);
       }
     }

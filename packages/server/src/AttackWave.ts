@@ -3,8 +3,6 @@ import {
   WATER,
   WAVE_SPEED_CELLS_PER_TICK,
   WAVE_DIRECTION_BIAS,
-  HOLD_STRENGTH,
-  HOLD_FRACTION,
 } from '@game/shared';
 import { MinHeap } from './MinHeap';
 
@@ -122,19 +120,19 @@ export class AttackWave {
       if (!Number.isFinite(cost)) {
         continue;
       }
-      // Оборона захваченной клетки пропорциональна текущей силе волны:
-      // сильная волна ставит крепкую оборону, которую слабый встречный удар
-      // не пробьёт → граница не мерцает. Доля от остатка войск, но не меньше
-      // минимума.
-      const hold = Math.max(HOLD_STRENGTH, this.troops * HOLD_FRACTION);
-      if (this.troops < cost + hold) {
+      // Не хватает войск на захват — волна выдохлась, останавливаемся.
+      if (this.troops < cost) {
         this.frontier.push(index, this.priorityOf(index));
         this.requeue(deferred);
         return false;
       }
 
-      this.troops -= cost + hold;
-      ctx.captureCell(index, this.playerId, hold);
+      // Армия тратится 1:1 на стоимость клетки. Преобладающая армия сносит
+      // территорию полностью, слабая — выдыхается. Захват отнимает войска и
+      // у защитника (внутри captureCell) — это истощает обе стороны в бою,
+      // и граница не мерцает: чтобы отбить, нужна армия, а не «бесплатный» откат.
+      this.troops -= cost;
+      ctx.captureCell(index, this.playerId, 0);
       budget--;
 
       const childDepth = this.depth.get(index)! + 1;
