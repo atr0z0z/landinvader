@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Territory</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0a12;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+
+      /* ─────────── Оверлеи (меню и лобби) ─────────── */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        background: radial-gradient(ellipse at center, #14141f 0%, #0a0a12 70%);
+      }
+      .overlay.hidden { display: none; }
+
+      /* Логотип-картинка. */
+      .logo-img {
+        width: min(460px, 70vw);
+        height: auto;
+        margin-bottom: 18px;
+        user-select: none;
+        -webkit-user-drag: none;
+        filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.5));
+      }
+      .tagline {
+        color: #6b6b7b;
+        font-size: 15px;
+        margin-bottom: 40px;
+        user-select: none;
+      }
+
+      /* Поле ника — скруглённая «пилюля», как в slither.io. */
+      #nickname {
+        width: 300px;
+        padding: 16px 22px;
+        border: none;
+        border-radius: 30px;
+        background: #2a2440;
+        color: #e8e8f0;
+        font-size: 17px;
+        text-align: center;
+        outline: none;
+        transition: box-shadow 0.2s, background 0.2s;
+      }
+      #nickname::placeholder { color: #7a7290; }
+      #nickname:focus {
+        background: #322a4d;
+        box-shadow: 0 0 0 2px #4ade8055;
+      }
+
+      /* Кнопка Play — зелёная пилюля со свечением. */
+      .play-btn {
+        margin-top: 20px;
+        padding: 15px 60px;
+        border: none;
+        border-radius: 30px;
+        background: linear-gradient(135deg, #4ade80, #22c55e);
+        color: #06281a;
+        font-size: 19px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.12s, box-shadow 0.2s;
+        box-shadow: 0 6px 20px #22c55e33;
+      }
+      .play-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px #22c55e55;
+      }
+      .play-btn:active { transform: translateY(0); }
+
+      /* ─────────── Экран ожидания (лобби) ─────────── */
+      #lobbyPhase {
+        font-size: 22px;
+        font-weight: 600;
+        color: #e8e8f0;
+        margin-bottom: 26px;
+        user-select: none;
+      }
+      .lobby-count {
+        font-size: 15px;
+        color: #8b8b99;
+        margin-top: 8px;
+        user-select: none;
+      }
+      /* Прогресс-бар заполнения лобби. */
+      .bar {
+        width: 320px;
+        height: 10px;
+        border-radius: 6px;
+        background: #23232f;
+        overflow: hidden;
+        margin-top: 18px;
+      }
+      .bar-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 6px;
+        background: linear-gradient(90deg, #4ade80, #22d3ee);
+        transition: width 0.4s ease;
+      }
+      .countdown {
+        font-size: 52px;
+        font-weight: 800;
+        color: #4ade80;
+        margin: 10px 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ─────────── Игровой UI (скрыт до старта) ─────────── */
+      #status {
+        position: fixed;
+        top: 12px; left: 12px;
+        font: 13px/1.4 system-ui, sans-serif;
+        color: #8b8b99;
+        pointer-events: none;
+        user-select: none;
+        z-index: 5;
+      }
+      #panel {
+        position: fixed;
+        bottom: 16px; left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 16px;
+        border-radius: 12px;
+        background: rgba(20, 20, 28, 0.85);
+        font: 14px/1 system-ui, sans-serif;
+        color: #c9c9d4;
+        user-select: none;
+        z-index: 5;
+      }
+      #panel input[type='range'] { width: 160px; accent-color: #4ade80; }
+      #troops { min-width: 70px; font-variant-numeric: tabular-nums; }
+      .game-ui.hidden { display: none; }
+
+      /* Круговое меню действий у точки клика. */
+      .radial {
+        position: fixed;
+        z-index: 8;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+      }
+      .radial.hidden { display: none; }
+      .radial-btn {
+        position: absolute;
+        width: 48px;
+        height: 48px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(30, 30, 42, 0.95);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 2px #4ade8066;
+        cursor: pointer;
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.12s, box-shadow 0.2s;
+        transform: translate(-50%, -50%);
+      }
+      .radial-btn:hover {
+        transform: translate(-50%, -50%) scale(1.12);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 0 2px #4ade80;
+      }
+      .radial-icon { font-size: 22px; }
+    </style>
+  </head>
+  <body>
+    <!-- Меню входа (slither.io-стиль) -->
+    <div id="menu" class="overlay">
+      <img id="logo" class="logo-img" alt="LandInvader.io" />
+      <div class="tagline">Захватывай территорию. Расширяйся. Побеждай.</div>
+      <input id="nickname" type="text" placeholder="Ваш никнейм" maxlength="16" autocomplete="off" />
+      <button id="playBtn" class="play-btn">Играть</button>
+    </div>
+
+    <!-- Экран ожидания (лобби) -->
+    <div id="lobby" class="overlay hidden">
+      <div id="lobbyPhase">Ожидание игроков…</div>
+      <div id="countdown" class="countdown" style="display:none"></div>
+      <div class="bar"><div id="lobbyBar" class="bar-fill"></div></div>
+      <div id="lobbyCount" class="lobby-count">0 / 16 игроков</div>
+    </div>
+
+    <!-- Игровой UI -->
+    <div id="status" class="game-ui hidden">Подключение…</div>
+    <div id="panel" class="game-ui hidden">
+      <span id="troops">⚔ 0</span>
+      <input id="ratio" type="range" min="10" max="100" value="50" step="5" />
+      <span id="ratioLabel">50%</span>
+    </div>
+
+    <!-- Круговое меню действий (всплывает по клику на свою клетку) -->
+    <div id="radialMenu" class="radial hidden">
+      <button class="radial-btn" data-action="ship" title="Отправить корабль">
+        <span class="radial-icon">⛵</span>
+      </button>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

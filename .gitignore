@@ -1,0 +1,18 @@
+# Зависимости — не заливаем, Render/локаль ставят сами
+node_modules/
+**/node_modules/
+
+# Сборка клиента — генерируется командой build
+packages/client/dist/
+
+# Логи и временное
+*.log
+npm-debug.log*
+.DS_Store
+
+# Локальные переменные окружения
+.env
+.env.local
+
+# Package-lock можно оставить, но если мешает — раскомментируй
+# package-lock.json

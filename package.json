@@ -1,0 +1,16 @@
+{
+  "name": "territory-game",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Медитативная multiplayer .io игра о захвате территории",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm --workspace @game/server run dev",
+    "dev:client": "npm --workspace @game/client run dev",
+    "typecheck": "npm --workspace @game/shared run typecheck && npm --workspace @game/server run typecheck && npm --workspace @game/client run typecheck",
+    "build": "npm --workspace @game/client run build",
+    "start": "npm --workspace @game/server run start"
+  }
+}

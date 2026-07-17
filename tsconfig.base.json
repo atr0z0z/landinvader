@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    /* Современный JS: все актуальные браузеры и Node 20+ это поддерживают */
+    "target": "ES2022",
+    "module": "ESNext",
+    /* "bundler" — резолюция импортов как у Vite/tsx: можно импортировать
+       .ts-файлы из соседних workspace-пакетов без шага сборки */
+    "moduleResolution": "bundler",
+
+    /* Максимальная строгость с первого дня — дешевле, чем включать потом */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    /* Мы не собираем .js через tsc — сборкой занимаются Vite (клиент)
+       и tsx (сервер). tsc используем только для проверки типов. */
+    "noEmit": true
+  }
+}
